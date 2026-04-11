@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Registro de Cosecha</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f5f5f3; --bgc: #ffffff; --bgi: #ebebea;
+      --tx: #1a1a18; --tm: #777; --bo: rgba(0,0,0,0.12); --bi: rgba(0,0,0,0.2);
+      --green: #639922; --gl: #EAF3DE; --gt: #27500A; --gs: #3B6D11;
+      --red: #A32D2D; --rl: #FCEBEB;
+      --blue: #185FA5; --bl: #E6F1FB;
+      --r: 12px; --rs: 8px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg:#1a1a18; --bgc:#252523; --bgi:#2e2e2c; --tx:#f0f0ee; --tm:#999; --bo:rgba(255,255,255,0.1); --bi:rgba(255,255,255,0.18); }
+    }
+    body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:var(--bg); color:var(--tx); min-height:100vh; padding:1.5rem 1rem 6rem; }
+    .app { max-width:960px; margin:0 auto; }
+
+    /* Login screen */
+    .login-screen { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:80vh; gap:16px; text-align:center; }
+    .login-screen h1 { font-size:22px; font-weight:500; }
+    .login-screen p { font-size:14px; color:var(--tm); max-width:280px; }
+    .google-btn { display:inline-flex; align-items:center; gap:10px; padding:0 20px; height:46px; border-radius:var(--rs); border:0.5px solid var(--bi); background:var(--bgc); color:var(--tx); font-size:15px; font-weight:500; cursor:pointer; font-family:inherit; }
+    .google-btn:active { opacity:.75; }
+    .google-btn svg { flex-shrink:0; }
+
+    .header { margin-bottom:1.5rem; display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:12px; }
+    .header h1 { font-size:22px; font-weight:500; }
+    .header p { font-size:13px; color:var(--tm); margin-top:3px; }
+    .header-right { display:flex; align-items:center; gap:10px; }
+    .user-info { font-size:13px; color:var(--tm); }
+
+    .btn { display:inline-flex; align-items:center; gap:6px; padding:0 16px; height:40px; border-radius:var(--rs); border:0.5px solid var(--bi); background:var(--bgc); color:var(--tx); font-size:14px; font-weight:500; cursor:pointer; font-family:inherit; white-space:nowrap; }
+    .btn:active { opacity:.75; }
+    .btn.primary { background:var(--green); color:#fff; border-color:var(--green); }
+    .btn.ghost { background:transparent; border-color:var(--bi); }
+
+    .summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; margin-bottom:1.25rem; }
+    .sc { background:var(--bgc); border:0.5px solid var(--bo); border-radius:var(--rs); padding:12px 16px; }
+    .sc label { font-size:11px; color:var(--tm); font-weight:500; text-transform:uppercase; letter-spacing:.05em; display:block; margin-bottom:4px; }
+    .sc .val { font-size:22px; font-weight:500; }
+    .sc.green { background:var(--gl); } .sc.green .val { color:var(--gt); }
+
+    .filters { display:flex; gap:8px; margin-bottom:1rem; flex-wrap:wrap; align-items:center; }
+    .filters select, .filters input { height:38px; padding:0 10px; border:0.5px solid var(--bi); border-radius:var(--rs); background:var(--bgc); color:var(--tx); font-size:13px; font-family:inherit; outline:none; -webkit-appearance:none; }
+    .filters input[type="date"] { padding:0 8px; }
+    .filters select:focus, .filters input:focus { border-color:var(--green); }
+    .flabel { font-size:12px; color:var(--tm); font-weight:500; }
+
+    .spinner { display:inline-block; width:20px; height:20px; border:2px solid var(--bo); border-top-color:var(--green); border-radius:50%; animation:spin .7s linear infinite; margin-right:8px; vertical-align:middle; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    .table-wrap { background:var(--bgc); border:0.5px solid var(--bo); border-radius:var(--r); overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; font-size:14px; min-width:580px; }
+    thead th { padding:10px 14px; text-align:left; font-size:11px; font-weight:500; color:var(--tm); text-transform:uppercase; letter-spacing:.05em; border-bottom:0.5px solid var(--bo); background:var(--bgi); white-space:nowrap; }
+    tbody tr { border-bottom:0.5px solid var(--bo); }
+    tbody tr:last-child { border-bottom:none; }
+    tbody tr:hover { background:var(--bgi); }
+    tbody td { padding:10px 14px; vertical-align:middle; }
+    td.ha { font-weight:500; text-align:right; }
+    td.actions { text-align:right; white-space:nowrap; }
+    .icon-btn { background:none; border:none; cursor:pointer; padding:5px 7px; border-radius:6px; font-size:15px; color:var(--tm); }
+    .icon-btn:hover { background:var(--bgi); color:var(--tx); }
+    .icon-btn.del:hover { background:var(--rl); color:var(--red); }
+    .icon-btn.edit:hover { background:var(--bl); color:var(--blue); }
+    .empty-row td { text-align:center; color:var(--tm); padding:36px; }
+
+    .overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:100; align-items:center; justify-content:center; padding:1rem; }
+    .overlay.open { display:flex; }
+    .modal { background:var(--bgc); border-radius:var(--r); padding:1.5rem; width:100%; max-width:440px; }
+    .modal h2 { font-size:17px; font-weight:500; margin-bottom:1.25rem; }
+    .ff { display:flex; flex-direction:column; gap:6px; margin-bottom:14px; }
+    .ff label { font-size:12px; color:var(--tm); font-weight:500; letter-spacing:.02em; }
+    .ff input { width:100%; height:46px; padding:0 12px; border:0.5px solid var(--bi); border-radius:var(--rs); background:var(--bgi); color:var(--tx); font-size:16px; font-family:inherit; outline:none; -webkit-appearance:none; }
+    .ff input:focus { border-color:var(--green); box-shadow:0 0 0 3px rgba(99,153,34,.1); }
+    .modal-actions { display:flex; gap:10px; justify-content:space-between; margin-top:1.5rem; align-items:center; }
+    .modal-right { display:flex; gap:10px; }
+    .btn.del-btn { background:var(--rl); color:var(--red); border-color:var(--red); }
+
+    .confirm-box { background:var(--bgc); border-radius:var(--r); padding:1.5rem; width:100%; max-width:320px; text-align:center; }
+    .confirm-box p { font-size:15px; margin-bottom:1.25rem; }
+    .confirm-actions { display:flex; gap:10px; justify-content:center; }
+
+    .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#1a1a18; color:#fff; padding:10px 20px; border-radius:20px; font-size:13px; opacity:0; transition:opacity .3s; pointer-events:none; z-index:200; white-space:nowrap; }
+    .toast.show { opacity:1; }
+
+    .hidden { display:none !important; }
+  </style>
+</head>
+<body>
+
+<!-- Login screen -->
+<div class="app" id="login-screen">
+  <div class="login-screen">
+    <h1>Registro de cosecha</h1>
+    <p>Iniciá sesión para acceder y modificar los registros</p>
+    <button class="google-btn" onclick="window.loginWithGoogle()">
+      <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 6.293C4.672 4.166 6.656 3.58 9 3.58z"/></svg>
+      Iniciar sesión con Google
+    </button>
+    <p style="font-size:12px;color:var(--tm)">Si solo querés ver los datos, <a href="#" onclick="window.viewOnly(); return false;" style="color:var(--blue)">entrá sin sesión</a></p>
+  </div>
+</div>
+
+<!-- Main app -->
+<div class="app hidden" id="main-app">
+  <div class="header">
+    <div>
+      <h1>Registro de cosecha</h1>
+      <p id="subtitle">Cargando...</p>
+    </div>
+    <div class="header-right">
+      <span class="user-info" id="user-name"></span>
+      <button class="btn primary hidden" id="btn-agregar" onclick="openModal(null)">+ Agregar</button>
+      <button class="btn ghost" id="btn-logout" onclick="window.logout()">Salir</button>
+    </div>
+  </div>
+
+  <div class="summary">
+    <div class="sc"><label>Total registros</label><div class="val" id="s-total">—</div></div>
+    <div class="sc green"><label>Total hectáreas</label><div class="val" id="s-ha">—</div></div>
+    <div class="sc"><label>Ha filtradas</label><div class="val" id="s-ha-f">—</div></div>
+    <div class="sc"><label>Lotes distintos</label><div class="val" id="s-lotes">—</div></div>
+  </div>
+
+  <div class="filters">
+    <span class="flabel">Filtrar:</span>
+    <input type="date" id="f-desde" onchange="applyFilters()" title="Desde">
+    <input type="date" id="f-hasta" onchange="applyFilters()" title="Hasta">
+    <select id="f-maquina" onchange="applyFilters()"><option value="">Todas las máquinas</option></select>
+    <select id="f-cultivo" onchange="applyFilters()"><option value="">Todos los cultivos</option></select>
+    <input type="text" id="f-lote" placeholder="Buscar lote..." oninput="applyFilters()" style="width:130px">
+    <button class="btn ghost" onclick="clearFilters()">Limpiar</button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Fecha</th><th>Lote</th><th>Cultivo</th><th>Máquina</th>
+          <th style="text-align:right">Hectáreas</th>
+          <th id="th-actions"></th>
+        </tr>
+      </thead>
+      <tbody id="tbody">
+        <tr><td colspan="6" style="text-align:center;padding:36px;color:var(--tm)"><span class="spinner"></span>Cargando...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="overlay" id="overlay" onclick="closeIfOutside(event)">
+  <div class="modal">
+    <h2 id="modal-title">Nuevo registro</h2>
+    <div class="ff"><label>Fecha</label><input type="date" id="i-fecha"></div>
+    <div class="ff"><label>Lote</label><input type="text" id="i-lote" placeholder="Ej: Lote 5" autocomplete="off"></div>
+    <div class="ff"><label>Cultivo</label><input type="text" id="i-cultivo" placeholder="Ej: Soja, Maíz, Trigo" autocomplete="off"></div>
+    <div class="ff"><label>Máquina</label><input type="text" id="i-maquina" placeholder="Ej: Cosechadora John Deere" autocomplete="off"></div>
+    <div class="ff"><label>Hectáreas</label><input type="text" id="i-ha" inputmode="decimal" placeholder="Ej: 45.5" autocomplete="off"></div>
+    <div class="modal-actions">
+      <button class="btn del-btn" id="btn-del" onclick="confirmDelete()" style="display:none">Eliminar</button>
+      <div class="modal-right">
+        <button class="btn ghost" onclick="closeModal()">Cancelar</button>
+        <button class="btn primary" onclick="save()">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm delete -->
+<div class="overlay" id="confirm-overlay">
+  <div class="confirm-box">
+    <p>¿Eliminar este registro?</p>
+    <div class="confirm-actions">
+      <button class="btn ghost" onclick="closeConfirm()">Cancelar</button>
+      <button class="btn" style="background:var(--red);color:#fff;border-color:var(--red)" onclick="doDelete()">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+  import { initializeApp }         from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy }
+                                   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
+                                   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBrF3pzAnVsOMKRy_MblQFFvyEy_vZ764U",
+    authDomain: "registro-cosecha-7340d.firebaseapp.com",
+    projectId: "registro-cosecha-7340d",
+    storageBucket: "registro-cosecha-7340d.firebasestorage.app",
+    messagingSenderId: "415420245599",
+    appId: "1:415420245599:web:f9f6a639420e4d32ea9dea"
+  };
+
+  const firebaseApp = initializeApp(firebaseConfig);
+  const db          = getFirestore(firebaseApp);
+  const auth        = getAuth(firebaseApp);
+  const provider    = new GoogleAuthProvider();
+  const col         = collection(db, "registros");
+
+  let allData    = [];
+  let editingId  = null;
+  let deletingId = null;
+  let isAdmin    = false;
+  let unsubSnap  = null;
+
+  // Auth state
+  onAuthStateChanged(auth, user => {
+    if (user) {
+      isAdmin = true;
+      showApp(user);
+    }
+  });
+
+  function showApp(user) {
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('main-app').classList.remove('hidden');
+    if (user) {
+      document.getElementById('user-name').textContent = user.displayName || user.email;
+    }
+    if (isAdmin) {
+      document.getElementById('btn-agregar').classList.remove('hidden');
+    }
+    startListener();
+  }
+
+  function startListener() {
+    if (unsubSnap) unsubSnap();
+    const q = query(col, orderBy("fecha","desc"));
+    unsubSnap = onSnapshot(q, snap => {
+      allData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      applyFilters();
+    });
+  }
+
+  // View only (no login)
+  window.viewOnly = function() {
+    isAdmin = false;
+    showApp(null);
+    document.getElementById('btn-logout').textContent = 'Iniciar sesión';
+    document.getElementById('btn-logout').onclick = () => window.location.reload();
+    document.getElementById('user-name').textContent = 'Solo lectura';
+  };
+
+  window.loginWithGoogle = async function() {
+    try { await signInWithPopup(auth, provider); }
+    catch(e) { alert('Error al iniciar sesión: ' + e.message); }
+  };
+
+  window.logout = async function() {
+    if (unsubSnap) unsubSnap();
+    await signOut(auth);
+    window.location.reload();
+  };
+
+  // Helpers
+  function parseNum(v) { var n=parseFloat(String(v).trim().replace(',','.')); return isNaN(n)?0:n; }
+  function fmtDate(d)  { if(!d)return'—'; var p=d.split('-'); return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:d; }
+  function fmtHa(n)    { return (n%1===0?n.toString():n.toFixed(1))+' ha'; }
+  function unique(arr) { return arr.filter((v,i,a)=>v&&a.indexOf(v)===i).sort(); }
+  function esc(s)      { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function today()     { var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  function showToast(msg) { var t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2500); }
+
+  window.applyFilters = function() {
+    var fMaq   = document.getElementById('f-maquina').value;
+    var fCul   = document.getElementById('f-cultivo').value;
+    var fLote  = document.getElementById('f-lote').value.toLowerCase().trim();
+    var fDesde = document.getElementById('f-desde').value;
+    var fHasta = document.getElementById('f-hasta').value;
+
+    var ms=document.getElementById('f-maquina'), cs=document.getElementById('f-cultivo');
+    var cm=ms.value, cc=cs.value;
+    ms.innerHTML='<option value="">Todas las máquinas</option>';
+    cs.innerHTML='<option value="">Todos los cultivos</option>';
+    unique(allData.map(r=>r.maquina)).forEach(v=>{var o=document.createElement('option');o.value=v;o.textContent=v;if(v===cm)o.selected=true;ms.appendChild(o);});
+    unique(allData.map(r=>r.cultivo)).forEach(v=>{var o=document.createElement('option');o.value=v;o.textContent=v;if(v===cc)o.selected=true;cs.appendChild(o);});
+
+    var filtered = allData.filter(r=>
+      (!fMaq  ||r.maquina===fMaq)&&
+      (!fCul  ||r.cultivo===fCul)&&
+      (!fLote ||r.lote.toLowerCase().includes(fLote))&&
+      (!fDesde||r.fecha>=fDesde)&&
+      (!fHasta||r.fecha<=fHasta)
+    );
+
+    var totalHa=allData.reduce((s,r)=>s+r.ha,0);
+    var filtHa =filtered.reduce((s,r)=>s+r.ha,0);
+    document.getElementById('s-total').textContent  = allData.length;
+    document.getElementById('s-ha').textContent     = fmtHa(totalHa).replace(' ha','');
+    document.getElementById('s-ha-f').textContent   = fmtHa(filtHa).replace(' ha','');
+    document.getElementById('s-lotes').textContent  = unique(allData.map(r=>r.lote)).length;
+    document.getElementById('subtitle').textContent = allData.length===0?'Sin registros aún':allData.length+' registro'+(allData.length!==1?'s':'')+' · '+fmtHa(totalHa)+' totales';
+
+    var tbody=document.getElementById('tbody');
+    if(filtered.length===0){ tbody.innerHTML='<tr class="empty-row"><td colspan="6">No hay registros que coincidan</td></tr>'; return; }
+
+    tbody.innerHTML = filtered.map(r=>
+      '<tr>'
+      +'<td>'+fmtDate(r.fecha)+'</td>'
+      +'<td>'+esc(r.lote)+'</td>'
+      +'<td>'+esc(r.cultivo)+'</td>'
+      +'<td>'+esc(r.maquina)+'</td>'
+      +'<td class="ha">'+fmtHa(r.ha)+'</td>'
+      +'<td class="actions">'+(isAdmin
+        ?'<button class="icon-btn edit" onclick="window.openModal(\''+r.id+'\')" title="Editar">✏️</button>'
+         +'<button class="icon-btn del" onclick="window.openConfirm(\''+r.id+'\')" title="Eliminar">✕</button>'
+        :'')
+      +'</td></tr>'
+    ).join('');
+  };
+
+  window.clearFilters = function() {
+    ['f-maquina','f-cultivo','f-lote','f-desde','f-hasta'].forEach(id=>document.getElementById(id).value='');
+    applyFilters();
+  };
+
+  window.openModal = function(id) {
+    if(!isAdmin) return;
+    editingId=id;
+    document.getElementById('modal-title').textContent=id?'Editar registro':'Nuevo registro';
+    document.getElementById('btn-del').style.display=id?'inline-flex':'none';
+    if(id){ var r=allData.find(x=>x.id===id); if(!r)return;
+      document.getElementById('i-fecha').value=r.fecha;
+      document.getElementById('i-lote').value=r.lote;
+      document.getElementById('i-cultivo').value=r.cultivo;
+      document.getElementById('i-maquina').value=r.maquina;
+      document.getElementById('i-ha').value=r.ha;
+    } else {
+      document.getElementById('i-fecha').value=today();
+      ['i-lote','i-cultivo','i-maquina','i-ha'].forEach(id=>document.getElementById(id).value='');
+    }
+    document.getElementById('overlay').classList.add('open');
+    setTimeout(()=>document.getElementById('i-lote').focus(),100);
+  };
+
+  window.closeModal    = function(){ document.getElementById('overlay').classList.remove('open'); editingId=null; };
+  window.closeIfOutside= function(e){ if(e.target===document.getElementById('overlay'))window.closeModal(); };
+
+  window.save = async function() {
+    if(!isAdmin) return;
+    var fecha=document.getElementById('i-fecha').value;
+    var lote=document.getElementById('i-lote').value.trim();
+    var cultivo=document.getElementById('i-cultivo').value.trim();
+    var maquina=document.getElementById('i-maquina').value.trim();
+    var ha=parseNum(document.getElementById('i-ha').value);
+    if(!fecha||!lote||!cultivo||!maquina||ha<=0){ alert('Completá todos los campos. Hectáreas debe ser mayor a 0.'); return; }
+    var data={fecha,lote,cultivo,maquina,ha};
+    try {
+      if(editingId){ await updateDoc(doc(db,'registros',editingId),data); showToast('Registro actualizado'); }
+      else { await addDoc(col,data); showToast('Registro guardado'); }
+      window.closeModal();
+    } catch(e){ alert('Error al guardar: '+e.message); }
+  };
+
+  window.openConfirm = function(id){ if(!isAdmin)return; deletingId=id; document.getElementById('confirm-overlay').classList.add('open'); };
+  window.confirmDelete=function(){ deletingId=editingId; window.closeModal(); document.getElementById('confirm-overlay').classList.add('open'); };
+  window.closeConfirm =function(){ document.getElementById('confirm-overlay').classList.remove('open'); deletingId=null; };
+  window.doDelete = async function(){
+    if(!deletingId||!isAdmin)return;
+    try{ await deleteDoc(doc(db,'registros',deletingId)); showToast('Registro eliminado'); }
+    catch(e){ alert('Error: '+e.message); }
+    window.closeConfirm();
+  };
+</script>
+</body>
+</html>
